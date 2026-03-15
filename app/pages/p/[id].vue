@@ -63,13 +63,54 @@ watch(taglineFont, (font) => {
 
 const bgStyle = useBgStyle(bgColor);
 
-function onKeydown(e: KeyboardEvent) {
-  if (e.code !== 'Space') return;
+function isFormElement(e: KeyboardEvent) {
   const target = e.target as HTMLElement;
-  if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
-  e.preventDefault();
-  if (!config.value || config.value.logomarks.length <= 1) return;
-  logomarkIndex.value = (logomarkIndex.value + 1) % config.value.logomarks.length;
+  return target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+}
+
+function cycleFonts() {
+  if (!config.value || config.value.fonts.length <= 1) return;
+  const fonts = config.value.fonts;
+  const nextIndex = (fonts.indexOf(wordmarkFont.value) + 1) % fonts.length;
+  const font = fonts[nextIndex];
+  wordmarkFont.value = font;
+  wordmarkFontWeight.value = clampWeight(font, wordmarkFontWeight.value);
+  taglineFont.value = font;
+  taglineFontWeight.value = clampWeight(font, taglineFontWeight.value);
+}
+
+function randomize() {
+  if (!config.value) return;
+  const fonts = config.value.fonts;
+  const marks = config.value.logomarks;
+  if (marks.length > 1) {
+    logomarkIndex.value = Math.floor(Math.random() * marks.length);
+  }
+  if (fonts.length > 1) {
+    const font = fonts[Math.floor(Math.random() * fonts.length)];
+    wordmarkFont.value = font;
+    wordmarkFontWeight.value = clampWeight(font, wordmarkFontWeight.value);
+    const tagFont = fonts[Math.floor(Math.random() * fonts.length)];
+    taglineFont.value = tagFont;
+    taglineFontWeight.value = clampWeight(tagFont, taglineFontWeight.value);
+  }
+}
+
+function onKeydown(e: KeyboardEvent) {
+  if (isFormElement(e)) return;
+  if (e.code === 'Space' && e.shiftKey) {
+    e.preventDefault();
+    cycleFonts();
+  }
+  else if (e.code === 'Space') {
+    e.preventDefault();
+    if (!config.value || config.value.logomarks.length <= 1) return;
+    logomarkIndex.value = (logomarkIndex.value + 1) % config.value.logomarks.length;
+  }
+  else if (e.code === 'KeyR' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    e.preventDefault();
+    randomize();
+  }
 }
 
 onMounted(() => window.addEventListener('keydown', onKeydown));
