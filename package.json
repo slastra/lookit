@@ -1,0 +1,25 @@
+{
+  "name": "lookit",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "bun --bun nuxt dev",
+    "build": "nuxt build",
+    "preview": "bun --bun .output/server/index.mjs",
+    "lint": "eslint . --fix",
+    "type-check": "vue-tsc --noEmit",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "@nuxt/ui": "^4.5.1",
+    "nanoid": "^5.1.6",
+    "nuxt": "^4.4.2",
+    "vue": "^3.5.30",
+    "vue-dompurify-html": "^5.3.0",
+    "vue-router": "^5.0.3"
+  },
+  "devDependencies": {
+    "@nuxt/eslint": "^1.15.2",
+    "vue-tsc": "^3.2.5"
+  }
+}
