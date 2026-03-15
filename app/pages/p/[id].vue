@@ -63,6 +63,18 @@ watch(taglineFont, (font) => {
 
 const bgStyle = useBgStyle(bgColor);
 
+function onKeydown(e: KeyboardEvent) {
+  if (e.code !== 'Space') return;
+  const target = e.target as HTMLElement;
+  if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+  e.preventDefault();
+  if (!config.value || config.value.logomarks.length <= 1) return;
+  logomarkIndex.value = (logomarkIndex.value + 1) % config.value.logomarks.length;
+}
+
+onMounted(() => window.addEventListener('keydown', onKeydown));
+onUnmounted(() => window.removeEventListener('keydown', onKeydown));
+
 const currentLockup = computed<SelectionLockup>(() => ({
   logomarkIndex: logomarkIndex.value,
   wordmarkFont: wordmarkFont.value,
