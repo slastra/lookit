@@ -1,0 +1,2 @@
+[start]
+cmd = 'bun --bun .output/server/index.mjs'
