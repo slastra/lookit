@@ -113,6 +113,47 @@ function onKeydown(e: KeyboardEvent) {
   }
 }
 
+// Swipe gestures: upper half cycles logomarks, lower half cycles fonts
+const previewArea = ref<HTMLElement>();
+let touchStartX = 0;
+let touchStartY = 0;
+const SWIPE_THRESHOLD = 50;
+
+function onTouchStart(e: TouchEvent) {
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+}
+
+function onTouchEnd(e: TouchEvent) {
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  const dy = e.changedTouches[0].clientY - touchStartY;
+  if (Math.abs(dx) < SWIPE_THRESHOLD || Math.abs(dy) > Math.abs(dx)) return;
+
+  const el = previewArea.value;
+  if (!el) return;
+  const rect = el.getBoundingClientRect();
+  const midY = rect.top + rect.height / 2;
+  const isUpper = touchStartY < midY;
+  const forward = dx < 0; // swipe left = next
+
+  if (isUpper) {
+    if (!config.value || config.value.logomarks.length <= 1) return;
+    const len = config.value.logomarks.length;
+    logomarkIndex.value = (logomarkIndex.value + (forward ? 1 : len - 1)) % len;
+  }
+  else {
+    if (!config.value || config.value.fonts.length <= 1) return;
+    const fonts = config.value.fonts;
+    const idx = fonts.indexOf(wordmarkFont.value);
+    const nextIdx = (idx + (forward ? 1 : fonts.length - 1)) % fonts.length;
+    const font = fonts[nextIdx];
+    wordmarkFont.value = font;
+    wordmarkFontWeight.value = clampWeight(font, wordmarkFontWeight.value);
+    taglineFont.value = font;
+    taglineFontWeight.value = clampWeight(font, taglineFontWeight.value);
+  }
+}
+
 onMounted(() => window.addEventListener('keydown', onKeydown));
 onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 
@@ -395,7 +436,7 @@ useHead({
           </div>
 
           <!-- Center: layout toggles -->
-          <div class="flex items-center justify-center gap-3">
+          <div class="hidden items-center justify-center gap-3 md:flex">
             <div class="flex gap-1">
               <UButton
                 size="xs"
@@ -454,8 +495,11 @@ useHead({
 
     <!-- Preview area -->
     <div
+      ref="previewArea"
       class="flex flex-1 items-center justify-center transition-colors duration-300"
       :style="bgStyle"
+      @touchstart.passive="onTouchStart"
+      @touchend="onTouchEnd"
     >
       <BrandPreview
         :logomark-svg="currentLogomark?.svg"
