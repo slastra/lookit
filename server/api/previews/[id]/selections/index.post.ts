@@ -1,5 +1,6 @@
 import { nanoid } from 'nanoid';
 import { useDb } from '~~/server/utils/db';
+import { selectionsEmitter } from '~~/server/utils/selections-emitter';
 
 export default defineEventHandler(async (event) => {
   const previewId = getRouterParam(event, 'id');
@@ -25,7 +26,7 @@ export default defineEventHandler(async (event) => {
     [id, previewId, body.name, JSON.stringify(body.lockup), body.message || null],
   );
 
-  return {
+  const selection = {
     id,
     preview_id: previewId,
     name: body.name,
@@ -33,4 +34,8 @@ export default defineEventHandler(async (event) => {
     message: body.message || null,
     created_at: Math.floor(Date.now() / 1000),
   };
+
+  selectionsEmitter.emit(`selection:${previewId}`, selection);
+
+  return selection;
 });

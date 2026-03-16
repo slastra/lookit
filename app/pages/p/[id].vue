@@ -14,6 +14,7 @@ if (error.value || !config.value) {
 
 // Local state initialized from config defaults
 const logomarkIndex = ref(0);
+const fontIndex = ref(0);
 const wordmarkFont = ref(config.value.defaultWordmarkFont || config.value.fonts[0] || 'Inter');
 const wordmarkFontWeight = ref(config.value.defaultWordmarkWeight ?? 700);
 const taglineFont = ref(config.value.defaultTaglineFont || config.value.fonts[0] || 'Inter');
@@ -34,6 +35,28 @@ const bgColor = ref(config.value.backgroundColor);
 
 // Selections
 const { data: selections, refresh: refreshSelections } = await useFetch<Selection[]>(`/api/previews/${id}/selections`);
+
+// SSE for real-time selections
+let eventSource: EventSource | null = null;
+onMounted(() => {
+  eventSource = new EventSource(`/api/previews/${id}/selections/stream`);
+  eventSource.onmessage = (e) => {
+    try {
+      const selection = JSON.parse(e.data) as Selection;
+      if (selections.value) {
+        selections.value = [selection, ...selections.value];
+      }
+      else {
+        selections.value = [selection];
+      }
+    }
+    catch { /* ignore parse errors */ }
+  };
+});
+onUnmounted(() => {
+  eventSource?.close();
+  eventSource = null;
+});
 
 // Name modal
 const nameModalOpen = ref(false);
@@ -68,15 +91,21 @@ function isFormElement(e: KeyboardEvent) {
   return target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
 }
 
-function cycleFonts() {
-  if (!config.value || config.value.fonts.length <= 1) return;
+function setFont(index: number) {
+  if (!config.value) return;
   const fonts = config.value.fonts;
-  const nextIndex = (fonts.indexOf(wordmarkFont.value) + 1) % fonts.length;
-  const font = fonts[nextIndex];
+  fontIndex.value = index;
+  const font = fonts[index];
   wordmarkFont.value = font;
   wordmarkFontWeight.value = clampWeight(font, wordmarkFontWeight.value);
   taglineFont.value = font;
   taglineFontWeight.value = clampWeight(font, taglineFontWeight.value);
+}
+
+function cycleFonts(forward = true) {
+  if (!config.value || config.value.fonts.length <= 1) return;
+  const len = config.value.fonts.length;
+  setFont((fontIndex.value + (forward ? 1 : len - 1)) % len);
 }
 
 function randomize() {
@@ -87,12 +116,7 @@ function randomize() {
     logomarkIndex.value = Math.floor(Math.random() * marks.length);
   }
   if (fonts.length > 1) {
-    const font = fonts[Math.floor(Math.random() * fonts.length)];
-    wordmarkFont.value = font;
-    wordmarkFontWeight.value = clampWeight(font, wordmarkFontWeight.value);
-    const tagFont = fonts[Math.floor(Math.random() * fonts.length)];
-    taglineFont.value = tagFont;
-    taglineFontWeight.value = clampWeight(tagFont, taglineFontWeight.value);
+    setFont(Math.floor(Math.random() * fonts.length));
   }
 }
 
@@ -142,15 +166,7 @@ function onTouchEnd(e: TouchEvent) {
     logomarkIndex.value = (logomarkIndex.value + (forward ? 1 : len - 1)) % len;
   }
   else {
-    if (!config.value || config.value.fonts.length <= 1) return;
-    const fonts = config.value.fonts;
-    const idx = fonts.indexOf(wordmarkFont.value);
-    const nextIdx = (idx + (forward ? 1 : fonts.length - 1)) % fonts.length;
-    const font = fonts[nextIdx];
-    wordmarkFont.value = font;
-    wordmarkFontWeight.value = clampWeight(font, wordmarkFontWeight.value);
-    taglineFont.value = font;
-    taglineFontWeight.value = clampWeight(font, taglineFontWeight.value);
+    cycleFonts(forward);
   }
 }
 
@@ -207,7 +223,6 @@ async function submitSelection() {
     toast.add({ title: 'Selection saved!', color: 'success' });
     feedbackModalOpen.value = false;
     feedbackMessage.value = '';
-    refreshSelections();
   }
   catch {
     toast.add({ title: 'Failed to save selection', color: 'error' });
