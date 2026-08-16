@@ -37,7 +37,6 @@ const props = defineProps<{
  *   rung(4)   6.854rem   logo, stacked
  *   rung(5)  11.090rem   logo, mark-only
  */
-const PHI = (1 + Math.sqrt(5)) / 2;
 const rung = (n: number) => PHI ** n;
 
 /**

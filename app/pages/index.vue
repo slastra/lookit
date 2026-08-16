@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PreviewConfig } from '~/types';
+import type { EditorState, PreviewConfig } from '~/types';
 import { curatedFonts, getFontWeights, clampWeight } from '~/utils/fonts';
 
 const logomarks = ref<{ label: string; svg: string | null }[]>([
@@ -96,12 +96,6 @@ function removeLogomark(index: number) {
 
 const previewIndex = ref(0);
 
-/**
- * Two rungs down the lockup's own golden-ratio scale — small enough that a
- * strip of them reads as a set, large enough that a mark is still legible.
- */
-const THUMBNAIL_SIZE = 1 / 1.618 ** 2;
-
 const previewableLogomarks = computed(() =>
   logomarks.value
     .map((mark, index) => ({ ...mark, _idx: index }))
@@ -116,6 +110,130 @@ const previewLogomark = computed(() => {
 });
 
 const bgStyle = useBgStyle(bgColor);
+
+/**
+ * Sessions. The editor holds everything in memory, so a refresh used to throw
+ * the work away; the active session is written back as it changes and reopened
+ * on load, and the logo menu switches between the recent ones.
+ */
+const { sessions, activeId, load, save, startNew, open, remove } = useEditorSessions();
+
+const editorState = computed<EditorState>(() => ({
+  logomarks: logomarks.value,
+  wordmark: wordmark.value,
+  taglineSvg: taglineSvg.value,
+  brandName: brandName.value,
+  taglineText: taglineText.value,
+  selectedFonts: selectedFonts.value,
+  wordmarkFont: wordmarkFont.value,
+  wordmarkFontWeight: wordmarkFontWeight.value,
+  taglineFont: taglineFont.value,
+  taglineFontWeight: taglineFontWeight.value,
+  primaryColor: primaryColor.value,
+  accentColor: accentColor.value,
+  bgColor: bgColor.value,
+  layout: layout.value,
+  logoScale: logoScale.value,
+  wordmarkScale: wordmarkScale.value,
+  taglineScale: taglineScale.value,
+  logoGap: logoGap.value,
+  taglineGap: taglineGap.value,
+  logoOffsetX: logoOffsetX.value,
+  logoOffsetY: logoOffsetY.value,
+  wordmarkLetterSpacing: wordmarkLetterSpacing.value,
+  taglineLetterSpacing: taglineLetterSpacing.value,
+}));
+
+function restore(state: EditorState) {
+  logomarks.value = state.logomarks;
+  wordmark.value = state.wordmark;
+  taglineSvg.value = state.taglineSvg;
+  brandName.value = state.brandName;
+  taglineText.value = state.taglineText;
+  selectedFonts.value = state.selectedFonts;
+  wordmarkFont.value = state.wordmarkFont;
+  wordmarkFontWeight.value = state.wordmarkFontWeight;
+  taglineFont.value = state.taglineFont;
+  taglineFontWeight.value = state.taglineFontWeight;
+  primaryColor.value = state.primaryColor;
+  accentColor.value = state.accentColor;
+  bgColor.value = state.bgColor;
+  layout.value = state.layout;
+  logoScale.value = state.logoScale;
+  wordmarkScale.value = state.wordmarkScale;
+  taglineScale.value = state.taglineScale;
+  logoGap.value = state.logoGap;
+  taglineGap.value = state.taglineGap;
+  logoOffsetX.value = state.logoOffsetX;
+  logoOffsetY.value = state.logoOffsetY;
+  wordmarkLetterSpacing.value = state.wordmarkLetterSpacing;
+  taglineLetterSpacing.value = state.taglineLetterSpacing;
+  previewIndex.value = 0;
+}
+
+// Held off until mounted so the first render doesn't wait on storage, and so a
+// restore doesn't immediately look like an edit worth saving.
+const restored = ref(false);
+onMounted(() => {
+  const session = load();
+  if (session) restore(session.state);
+  restored.value = true;
+});
+
+let saveTimer: ReturnType<typeof setTimeout> | undefined;
+watch(editorState, (state) => {
+  if (!restored.value) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => save(state), 500);
+}, { deep: true });
+onUnmounted(() => clearTimeout(saveTimer));
+
+function relativeTime(epoch: number): string {
+  const minutes = Math.round((Date.now() - epoch) / 60000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
+}
+
+function deleteActiveSession() {
+  if (!activeId.value) return;
+  remove(activeId.value);
+  // What was on screen is gone, so hand back a blank slate rather than leave it
+  // editable but no longer saved anywhere.
+  restore(startNew());
+}
+
+const sessionMenu = computed(() => [
+  [
+    {
+      label: 'New session',
+      icon: 'i-lucide-plus',
+      onSelect: () => restore(startNew()),
+    },
+    // Deleting acts on the session in front of you: a per-row submenu would
+    // turn each row into a submenu trigger and stop it opening on click.
+    ...(activeId.value
+      ? [{
+          label: 'Delete this session',
+          icon: 'i-lucide-trash-2',
+          color: 'error' as const,
+          onSelect: () => deleteActiveSession(),
+        }]
+      : []),
+  ],
+  sessions.value.map(session => ({
+    label: session.name,
+    // The active one is already on screen, so mark it rather than reopen it.
+    icon: session.id === activeId.value ? 'i-lucide-check' : 'i-lucide-clock',
+    kbds: [relativeTime(session.updatedAt)],
+    onSelect: () => {
+      const state = open(session.id);
+      if (state) restore(state);
+    },
+  })),
+]);
 
 const config = computed<PreviewConfig>(() => ({
   logomarks: logomarks.value
@@ -157,15 +275,30 @@ const config = computed<PreviewConfig>(() => ({
       :ui="{ body: 'gap-0 p-4', footer: 'border-t border-default p-4' }"
     >
       <template #header>
-        <div class="flex items-center gap-2">
-          <div class="flex items-center justify-center rounded-lg bg-primary p-1.5">
+        <!-- The logo doubles as the session menu: new session, or reopen a recent one. -->
+        <UDropdownMenu
+          :items="sessionMenu"
+          :ui="{ content: 'w-60' }"
+        >
+          <UButton
+            variant="ghost"
+            color="neutral"
+            class="-ms-1.5 gap-2 px-1.5"
+            aria-label="Sessions"
+          >
+            <span class="flex items-center justify-center rounded-lg bg-primary p-1.5">
+              <UIcon
+                name="i-lucide-scan-eye"
+                class="size-5 text-(--ui-bg)"
+              />
+            </span>
+            <span class="text-lg font-bold">Lookit</span>
             <UIcon
-              name="i-lucide-scan-eye"
-              class="size-5 text-(--ui-bg)"
+              name="i-lucide-chevron-down"
+              class="size-4 text-dimmed"
             />
-          </div>
-          <span class="text-lg font-bold">Lookit</span>
-        </div>
+          </UButton>
+        </UDropdownMenu>
       </template>
 
       <!-- Logomarks -->

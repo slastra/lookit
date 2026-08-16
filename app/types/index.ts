@@ -53,3 +53,37 @@ export interface Selection {
   message: string | null;
   created_at: number;
 }
+
+/** Everything the editor holds, as saved to a session. */
+export interface EditorState {
+  logomarks: { label: string; svg: string | null }[];
+  wordmark: string | null;
+  taglineSvg: string | null;
+  brandName: string;
+  taglineText: string;
+  selectedFonts: string[];
+  wordmarkFont: string;
+  wordmarkFontWeight: number;
+  taglineFont: string;
+  taglineFontWeight: number;
+  primaryColor: string;
+  accentColor: string;
+  bgColor: string;
+  layout: 'horizontal' | 'stacked' | 'mark-only';
+  logoScale: number;
+  wordmarkScale: number;
+  taglineScale: number;
+  logoGap: number;
+  taglineGap: number;
+  logoOffsetX: number;
+  logoOffsetY: number;
+  wordmarkLetterSpacing: number;
+  taglineLetterSpacing: number;
+}
+
+export interface EditorSession {
+  id: string;
+  name: string;
+  updatedAt: number;
+  state: EditorState;
+}

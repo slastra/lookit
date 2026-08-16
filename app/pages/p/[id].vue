@@ -46,7 +46,7 @@ const taglineLetterSpacing = ref(config.value.taglineLetterSpacing ?? 0);
 const bgColor = ref(config.value.backgroundColor);
 
 // Selections
-const { data: selections, refresh: refreshSelections } = await useFetch<Selection[]>(`/api/previews/${id}/selections`);
+const { data: selections } = await useFetch<Selection[]>(`/api/previews/${id}/selections`);
 
 // SSE for real-time selections
 let eventSource: EventSource | null = null;
@@ -103,6 +103,14 @@ function isFormElement(e: KeyboardEvent) {
   return target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
 }
 
+/**
+ * An open select, menu or dialog wants the arrows for its own highlight, and
+ * they render in a portal so the event target isn't inside our tree.
+ */
+function hasOpenOverlay() {
+  return !!document.querySelector('[role="listbox"], [role="menu"], [role="dialog"]');
+}
+
 function setFont(index: number) {
   if (!config.value) return;
   const font = config.value.fonts[index];
@@ -138,7 +146,22 @@ function randomize() {
 }
 
 function onKeydown(e: KeyboardEvent) {
-  if (isFormElement(e)) return;
+  if (isFormElement(e) || hasOpenOverlay()) return;
+
+  // The arrows reach the same two axes as the swipes — sideways for logomarks,
+  // up and down for fonts — but take the direction a keyboard implies, where
+  // right and down advance, rather than the swipe's push-the-content sense.
+  if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+    e.preventDefault();
+    cycleLogomarks(e.key === 'ArrowRight');
+    return;
+  }
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    cycleFonts(e.key === 'ArrowDown');
+    return;
+  }
+
   if (e.code === 'Space' && e.shiftKey) {
     e.preventDefault();
     cycleFonts();
@@ -247,7 +270,6 @@ function applySelection(sel: Selection) {
   taglineLetterSpacing.value = sel.lockup.taglineLetterSpacing ?? 0;
   logoOffsetX.value = sel.lockup.logoOffsetX ?? 0;
   logoOffsetY.value = sel.lockup.logoOffsetY ?? 0;
-  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 useHead({
@@ -258,10 +280,10 @@ useHead({
 <template>
   <div
     v-if="config"
-    class="flex min-h-screen flex-col"
+    class="flex h-svh flex-col"
   >
     <!-- Controls bar -->
-    <div class="sticky top-0 z-10 border-b border-zinc-200 bg-white/95 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/95">
+    <div class="shrink-0 border-b border-zinc-200 bg-white/95 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/95">
       <div class="mx-auto max-w-6xl px-4 py-3">
         <div class="flex items-center justify-between gap-1.5 md:gap-3">
           <!-- Left: menus -->
@@ -509,7 +531,7 @@ useHead({
 
     <!-- Preview area -->
     <div
-      class="flex flex-1 items-center justify-center transition-colors duration-300"
+      class="flex min-h-0 flex-1 items-center justify-center transition-colors duration-300"
       :style="[bgStyle, { touchAction: 'pan-x pinch-zoom' }]"
     >
       <BrandPreview
@@ -537,12 +559,13 @@ useHead({
       />
     </div>
 
-    <!-- Selection Feed -->
+    <!-- Selection Feed: a band at the bottom that scrolls within itself, so the
+         lockup above keeps every pixel the selections don't need. -->
     <div
       v-if="selections?.length"
-      class="border-t border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900"
+      class="shrink-0 border-t border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900"
     >
-      <div class="mx-auto max-w-3xl px-4 py-8">
+      <div class="mx-auto max-w-3xl">
         <SelectionFeed
           :selections="selections"
           :config="config"
@@ -561,7 +584,7 @@ useHead({
     </div>
 
     <!-- Footer -->
-    <div class="border-t border-zinc-200 bg-white py-4 text-center text-sm text-zinc-400 dark:border-zinc-800 dark:bg-zinc-950">
+    <div class="shrink-0 border-t border-zinc-200 bg-white py-3 text-center text-sm text-zinc-400 dark:border-zinc-800 dark:bg-zinc-950">
       Powered by <NuxtLink
         to="/"
         class="underline hover:text-zinc-600"

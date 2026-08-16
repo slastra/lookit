@@ -18,26 +18,33 @@ function formatDate(epoch: number): string {
 <template>
   <div
     v-if="selections.length"
-    class="space-y-4"
+    class="flex flex-col"
   >
-    <h3 class="text-lg font-semibold">
-      Saved Selections
-    </h3>
+    <div class="flex shrink-0 items-center justify-between px-4 pt-3 pb-2">
+      <h3 class="text-sm font-semibold">
+        Saved Selections
+      </h3>
+      <span class="text-xs text-zinc-500">{{ selections.length }}</span>
+    </div>
 
-    <div
-      v-for="sel in selections"
-      :key="sel.id"
-      class="grid cursor-pointer gap-4"
-      style="grid-template-columns: auto 1fr;"
-      @click="emit('select', sel)"
-    >
-      <!-- Mini preview -->
+    <!--
+      Exactly one row tall, so the panel costs the lockup as little height as it
+      can while still showing a whole selection. Rows are a fixed height and
+      snap, so scrolling lands on one rather than between two.
+    -->
+    <div class="h-32 snap-y snap-mandatory divide-y divide-zinc-200 overflow-y-auto dark:divide-zinc-800">
       <div
-        class="flex items-center justify-center overflow-hidden rounded-lg"
-        style="aspect-ratio: 1; height: 100%;"
-        :style="{ backgroundColor: sel.lockup.backgroundColor }"
+        v-for="sel in selections"
+        :key="sel.id"
+        class="grid h-32 cursor-pointer snap-start items-center gap-3 px-4"
+        style="grid-template-columns: auto 1fr;"
+        @click="emit('select', sel)"
       >
-        <div class="scale-[0.25] transform">
+        <!-- Mini preview -->
+        <div
+          class="flex size-24 items-center justify-center overflow-hidden rounded-lg"
+          :style="{ backgroundColor: sel.lockup.backgroundColor }"
+        >
           <BrandPreview
             v-if="config.logomarks[sel.lockup.logomarkIndex]"
             :logomark-svg="config.logomarks[sel.lockup.logomarkIndex]!.svg"
@@ -61,16 +68,17 @@ function formatDate(epoch: number): string {
             :tagline-letter-spacing="sel.lockup.taglineLetterSpacing"
             :logo-offset-x="sel.lockup.logoOffsetX"
             :logo-offset-y="sel.lockup.logoOffsetY"
+            :size="THUMBNAIL_SIZE"
           />
         </div>
-      </div>
 
-      <!-- Details card -->
-      <UCard class="min-w-0 flex-1 transition-shadow hover:shadow-md">
-        <div class="relative">
-          <span class="absolute top-0 right-0 text-xs text-zinc-500">{{ formatDate(sel.created_at) }}</span>
-          <span class="font-medium">{{ sel.name }}</span>
-          <div class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+        <!-- Details -->
+        <div class="min-w-0">
+          <div class="flex items-baseline justify-between gap-2">
+            <span class="truncate font-medium">{{ sel.name }}</span>
+            <span class="shrink-0 text-xs text-zinc-500">{{ formatDate(sel.created_at) }}</span>
+          </div>
+          <div class="mt-1 truncate text-sm text-zinc-600 dark:text-zinc-400">
             <span>{{ config.logomarks[sel.lockup.logomarkIndex]?.label || 'Logomark' }}</span>
             <span class="mx-1">&middot;</span>
             <span>{{ sel.lockup.wordmarkFont }}</span>
@@ -79,12 +87,12 @@ function formatDate(epoch: number): string {
           </div>
           <p
             v-if="sel.message"
-            class="mt-2 text-sm text-zinc-500 italic"
+            class="mt-1 line-clamp-2 text-sm text-zinc-500 italic"
           >
             "{{ sel.message }}"
           </p>
         </div>
-      </UCard>
+      </div>
     </div>
   </div>
 </template>
