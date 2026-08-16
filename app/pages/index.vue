@@ -135,424 +135,429 @@ const config = computed<PreviewConfig>(() => ({
 
 <template>
   <UDashboardGroup>
-    <!-- Left panel: scrollable controls -->
-    <UDashboardPanel
+    <!-- Left controls: inline panel on desktop, slideover menu on mobile -->
+    <UDashboardSidebar
       id="editor"
       :default-size="25"
       :min-size="20"
       :max-size="35"
       resizable
+      :ui="{ body: 'gap-0 p-4', footer: 'border-t border-default p-4' }"
     >
-      <UDashboardNavbar>
-        <template #leading>
-          <div class="flex items-center gap-2">
-            <div class="flex items-center justify-center rounded-lg bg-primary p-1.5">
-              <UIcon
-                name="i-lucide-scan-eye"
-                class="size-5 text-(--ui-bg)"
+      <template #header>
+        <div class="flex items-center gap-2">
+          <div class="flex items-center justify-center rounded-lg bg-primary p-1.5">
+            <UIcon
+              name="i-lucide-scan-eye"
+              class="size-5 text-(--ui-bg)"
+            />
+          </div>
+          <span class="text-lg font-bold">Lookit</span>
+        </div>
+      </template>
+
+      <!-- Logomarks -->
+      <UCollapsible default-open class="group">
+        <UButton
+          variant="ghost"
+          block
+          class="justify-start"
+          color="neutral"
+          icon="i-lucide-shapes"
+          label="Logomarks"
+          trailing-icon="i-lucide-chevron-down"
+          :ui="{ trailingIcon: 'transition-transform group-data-[state=open]:rotate-180' }"
+        />
+        <template #content>
+          <div class="space-y-4 px-2 pt-3 pb-6">
+            <UCard
+              v-for="(mark, i) in logomarks"
+              :key="i"
+              variant="subtle"
+            >
+              <template #header>
+                <div class="flex items-center justify-between">
+                  <span class="text-sm font-medium">{{ mark.label }}</span>
+                  <UDropdownMenu
+                    :items="[
+                      { label: 'Rename', icon: 'i-lucide-pencil', onSelect: () => openRename(i) },
+                      { label: 'Remove', icon: 'i-lucide-trash-2', color: 'error' as const, disabled: logomarks.length <= 1, onSelect: () => removeLogomark(i) },
+                    ]"
+                  >
+                    <UButton
+                      icon="i-lucide-ellipsis-vertical"
+                      size="xs"
+                      variant="ghost"
+                      color="neutral"
+                    />
+                  </UDropdownMenu>
+                </div>
+              </template>
+              <SvgUploadSlot
+                :model-value="mark.svg"
+                @update:model-value="mark.svg = $event"
               />
-            </div>
-            <span class="text-lg font-bold">Lookit</span>
+            </UCard>
+            <UButton
+              icon="i-lucide-plus"
+              label="Add Empty"
+              variant="outline"
+              color="neutral"
+              size="sm"
+              block
+              @click="addLogomark"
+            />
+            <UButton
+              icon="i-lucide-upload"
+              label="Upload SVGs"
+              variant="outline"
+              color="neutral"
+              size="sm"
+              block
+              @click="bulkUploadRef?.click()"
+            />
+            <input
+              ref="bulkUploadRef"
+              type="file"
+              accept=".svg,image/svg+xml"
+              multiple
+              class="hidden"
+              @change="onBulkUpload"
+            />
           </div>
         </template>
-      </UDashboardNavbar>
+      </UCollapsible>
 
-      <div class="flex-1 overflow-y-auto p-4">
-        <!-- Logomarks -->
-        <UCollapsible default-open class="group">
-          <UButton
-            variant="ghost"
-            block
-            class="justify-start"
-            color="neutral"
-            icon="i-lucide-shapes"
-            label="Logomarks"
-            trailing-icon="i-lucide-chevron-down"
-            :ui="{ trailingIcon: 'transition-transform group-data-[state=open]:rotate-180' }"
-          />
-          <template #content>
-            <div class="space-y-4 px-2 pt-3 pb-6">
-              <UCard
-                v-for="(mark, i) in logomarks"
-                :key="i"
-                variant="subtle"
-              >
-                <template #header>
-                  <div class="flex items-center justify-between">
-                    <span class="text-sm font-medium">{{ mark.label }}</span>
-                    <UDropdownMenu
-                      :items="[
-                        { label: 'Rename', icon: 'i-lucide-pencil', onSelect: () => openRename(i) },
-                        { label: 'Remove', icon: 'i-lucide-trash-2', color: 'error' as const, disabled: logomarks.length <= 1, onSelect: () => removeLogomark(i) },
-                      ]"
-                    >
-                      <UButton
-                        icon="i-lucide-ellipsis-vertical"
-                        size="xs"
-                        variant="ghost"
-                        color="neutral"
-                      />
-                    </UDropdownMenu>
-                  </div>
-                </template>
-                <SvgUploadSlot
-                  :model-value="mark.svg"
-                  @update:model-value="mark.svg = $event"
-                />
-              </UCard>
-              <UButton
-                icon="i-lucide-plus"
-                label="Add Empty"
-                variant="outline"
-                color="neutral"
-                size="sm"
-                block
-                @click="addLogomark"
+      <USeparator />
+
+      <!-- Wordmark & Tagline -->
+      <UCollapsible class="group">
+        <UButton
+          variant="ghost"
+          block
+          class="justify-start"
+          color="neutral"
+          icon="i-lucide-type"
+          label="Wordmark & Tagline"
+          trailing-icon="i-lucide-chevron-down"
+          :ui="{ trailingIcon: 'transition-transform group-data-[state=open]:rotate-180' }"
+        />
+        <template #content>
+          <div class="space-y-4 px-2 pt-3 pb-6">
+            <SvgUploadSlot
+              v-model="wordmark"
+              label="Wordmark SVG"
+            />
+            <SvgUploadSlot
+              v-model="taglineSvg"
+              label="Tagline SVG"
+            />
+          </div>
+        </template>
+      </UCollapsible>
+
+      <USeparator />
+
+      <!-- Brand Text -->
+      <UCollapsible class="group">
+        <UButton
+          variant="ghost"
+          block
+          class="justify-start"
+          color="neutral"
+          icon="i-lucide-text-cursor"
+          label="Brand Text"
+          trailing-icon="i-lucide-chevron-down"
+          :ui="{ trailingIcon: 'transition-transform group-data-[state=open]:rotate-180' }"
+        />
+        <template #content>
+          <div class="space-y-3 px-2 pt-3 pb-6">
+            <UFormField label="Brand Name">
+              <UInput
+                v-model="brandName"
+                placeholder="Brand Name"
               />
-              <UButton
-                icon="i-lucide-upload"
-                label="Upload SVGs"
-                variant="outline"
-                color="neutral"
-                size="sm"
-                block
-                @click="bulkUploadRef?.click()"
+            </UFormField>
+            <UFormField label="Tagline">
+              <UInput
+                v-model="taglineText"
+                placeholder="Your tagline here"
               />
-              <input
-                ref="bulkUploadRef"
-                type="file"
-                accept=".svg,image/svg+xml"
+            </UFormField>
+          </div>
+        </template>
+      </UCollapsible>
+
+      <USeparator />
+
+      <!-- Fonts -->
+      <UCollapsible class="group">
+        <UButton
+          variant="ghost"
+          block
+          class="justify-start"
+          color="neutral"
+          icon="i-lucide-a-large-small"
+          label="Fonts"
+          trailing-icon="i-lucide-chevron-down"
+          :ui="{ trailingIcon: 'transition-transform group-data-[state=open]:rotate-180' }"
+        />
+        <template #content>
+          <div class="space-y-4 px-2 pt-3 pb-6">
+            <UFormField label="Available Fonts">
+              <USelectMenu
+                v-model="selectedFonts"
+                :items="fontOptions"
                 multiple
-                class="hidden"
-                @change="onBulkUpload"
-              />
-            </div>
-          </template>
-        </UCollapsible>
-
-        <USeparator />
-
-        <!-- Wordmark & Tagline -->
-        <UCollapsible class="group">
-          <UButton
-            variant="ghost"
-            block
-            class="justify-start"
-            color="neutral"
-            icon="i-lucide-type"
-            label="Wordmark & Tagline"
-            trailing-icon="i-lucide-chevron-down"
-            :ui="{ trailingIcon: 'transition-transform group-data-[state=open]:rotate-180' }"
-          />
-          <template #content>
-            <div class="space-y-4 px-2 pt-3 pb-6">
-              <SvgUploadSlot
-                v-model="wordmark"
-                label="Wordmark SVG"
-              />
-              <SvgUploadSlot
-                v-model="taglineSvg"
-                label="Tagline SVG"
-              />
-            </div>
-          </template>
-        </UCollapsible>
-
-        <USeparator />
-
-        <!-- Brand Text -->
-        <UCollapsible class="group">
-          <UButton
-            variant="ghost"
-            block
-            class="justify-start"
-            color="neutral"
-            icon="i-lucide-text-cursor"
-            label="Brand Text"
-            trailing-icon="i-lucide-chevron-down"
-            :ui="{ trailingIcon: 'transition-transform group-data-[state=open]:rotate-180' }"
-          />
-          <template #content>
-            <div class="space-y-3 px-2 pt-3 pb-6">
-              <UFormField label="Brand Name">
-                <UInput
-                  v-model="brandName"
-                  placeholder="Brand Name"
+                placeholder="Select fonts"
+              >
+                <template #item-label="{ item }">
+                  <span :style="{ fontFamily: item.label }">{{ item.label }}</span>
+                </template>
+              </USelectMenu>
+            </UFormField>
+            <div class="flex gap-2">
+              <UFormField label="Default Wordmark Font" class="flex-1">
+                <USelect
+                  v-model="wordmarkFont"
+                  :items="fontList"
                 />
               </UFormField>
-              <UFormField label="Tagline">
-                <UInput
-                  v-model="taglineText"
-                  placeholder="Your tagline here"
+              <UFormField label="Weight" class="w-24">
+                <USelect
+                  v-model="wordmarkFontWeight"
+                  :items="wordmarkWeightOptions"
                 />
               </UFormField>
             </div>
-          </template>
-        </UCollapsible>
-
-        <USeparator />
-
-        <!-- Fonts -->
-        <UCollapsible class="group">
-          <UButton
-            variant="ghost"
-            block
-            class="justify-start"
-            color="neutral"
-            icon="i-lucide-a-large-small"
-            label="Fonts"
-            trailing-icon="i-lucide-chevron-down"
-            :ui="{ trailingIcon: 'transition-transform group-data-[state=open]:rotate-180' }"
-          />
-          <template #content>
-            <div class="space-y-4 px-2 pt-3 pb-6">
-              <UFormField label="Available Fonts">
-                <USelectMenu
-                  v-model="selectedFonts"
-                  :items="fontOptions"
-                  multiple
-                  placeholder="Select fonts"
-                >
-                  <template #item-label="{ item }">
-                    <span :style="{ fontFamily: item.label }">{{ item.label }}</span>
-                  </template>
-                </USelectMenu>
-              </UFormField>
-              <div class="flex gap-2">
-                <UFormField label="Default Wordmark Font" class="flex-1">
-                  <USelect
-                    v-model="wordmarkFont"
-                    :items="fontList"
-                  />
-                </UFormField>
-                <UFormField label="Weight" class="w-24">
-                  <USelect
-                    v-model="wordmarkFontWeight"
-                    :items="wordmarkWeightOptions"
-                  />
-                </UFormField>
-              </div>
-              <UFormField label="Wordmark Letter Spacing">
-                <USlider
-                  v-model="wordmarkLetterSpacing"
-                  color="neutral"
-                  :min="-0.05"
-                  :max="0.3"
-                  :step="0.01"
-                />
-              </UFormField>
-              <div class="flex gap-2">
-                <UFormField label="Default Tagline Font" class="flex-1">
-                  <USelect
-                    v-model="taglineFont"
-                    :items="fontList"
-                  />
-                </UFormField>
-                <UFormField label="Weight" class="w-24">
-                  <USelect
-                    v-model="taglineFontWeight"
-                    :items="taglineWeightOptions"
-                  />
-                </UFormField>
-              </div>
-              <UFormField label="Tagline Letter Spacing">
-                <USlider
-                  v-model="taglineLetterSpacing"
-                  color="neutral"
-                  :min="-0.05"
-                  :max="0.3"
-                  :step="0.01"
-                />
-              </UFormField>
-              <UButton
-                label="Reset"
-                icon="i-lucide-rotate-ccw"
-                variant="outline"
+            <UFormField label="Wordmark Letter Spacing">
+              <USlider
+                v-model="wordmarkLetterSpacing"
                 color="neutral"
-                size="sm"
-                block
-                @click="wordmarkFont = 'Inter'; wordmarkFontWeight = 700; taglineFont = 'Inter'; taglineFontWeight = 400; wordmarkLetterSpacing = 0; taglineLetterSpacing = 0"
+                :min="-0.05"
+                :max="0.3"
+                :step="0.01"
               />
+            </UFormField>
+            <div class="flex gap-2">
+              <UFormField label="Default Tagline Font" class="flex-1">
+                <USelect
+                  v-model="taglineFont"
+                  :items="fontList"
+                />
+              </UFormField>
+              <UFormField label="Weight" class="w-24">
+                <USelect
+                  v-model="taglineFontWeight"
+                  :items="taglineWeightOptions"
+                />
+              </UFormField>
             </div>
-          </template>
-        </UCollapsible>
-
-        <USeparator />
-
-        <!-- Colors -->
-        <UCollapsible class="group">
-          <UButton
-            variant="ghost"
-            block
-            class="justify-start"
-            color="neutral"
-            icon="i-lucide-palette"
-            label="Colors"
-            trailing-icon="i-lucide-chevron-down"
-            :ui="{ trailingIcon: 'transition-transform group-data-[state=open]:rotate-180' }"
-          />
-          <template #content>
-            <div class="flex flex-wrap gap-2 px-2 pt-3 pb-6">
-              <ColorPalette
-                v-model="primaryColor"
-                label="Primary"
-              />
-              <ColorPalette
-                v-model="accentColor"
-                label="Accent"
-              />
-              <ColorPalette
-                v-model="bgColor"
-                label="Background"
-              />
-            </div>
-          </template>
-        </UCollapsible>
-
-        <USeparator />
-
-        <!-- Layout -->
-        <UCollapsible class="group">
-          <UButton
-            variant="ghost"
-            block
-            class="justify-start"
-            color="neutral"
-            icon="i-lucide-layout-grid"
-            label="Layout"
-            trailing-icon="i-lucide-chevron-down"
-            :ui="{ trailingIcon: 'transition-transform group-data-[state=open]:rotate-180' }"
-          />
-          <template #content>
-            <div class="flex gap-2 px-2 pt-3 pb-6">
-              <UButton
-                label="Horizontal"
-                :variant="layout === 'horizontal' ? 'solid' : 'outline'"
+            <UFormField label="Tagline Letter Spacing">
+              <USlider
+                v-model="taglineLetterSpacing"
                 color="neutral"
-                size="sm"
-                @click="layout = 'horizontal'"
+                :min="-0.05"
+                :max="0.3"
+                :step="0.01"
               />
-              <UButton
-                label="Stacked"
-                :variant="layout === 'stacked' ? 'solid' : 'outline'"
+            </UFormField>
+            <UButton
+              label="Reset"
+              icon="i-lucide-rotate-ccw"
+              variant="outline"
+              color="neutral"
+              size="sm"
+              block
+              @click="wordmarkFont = 'Inter'; wordmarkFontWeight = 700; taglineFont = 'Inter'; taglineFontWeight = 400; wordmarkLetterSpacing = 0; taglineLetterSpacing = 0"
+            />
+          </div>
+        </template>
+      </UCollapsible>
+
+      <USeparator />
+
+      <!-- Colors -->
+      <UCollapsible class="group">
+        <UButton
+          variant="ghost"
+          block
+          class="justify-start"
+          color="neutral"
+          icon="i-lucide-palette"
+          label="Colors"
+          trailing-icon="i-lucide-chevron-down"
+          :ui="{ trailingIcon: 'transition-transform group-data-[state=open]:rotate-180' }"
+        />
+        <template #content>
+          <div class="flex flex-wrap gap-2 px-2 pt-3 pb-6">
+            <ColorPalette
+              v-model="primaryColor"
+              label="Primary"
+            />
+            <ColorPalette
+              v-model="accentColor"
+              label="Accent"
+            />
+            <ColorPalette
+              v-model="bgColor"
+              label="Background"
+            />
+          </div>
+        </template>
+      </UCollapsible>
+
+      <USeparator />
+
+      <!-- Layout -->
+      <UCollapsible class="group">
+        <UButton
+          variant="ghost"
+          block
+          class="justify-start"
+          color="neutral"
+          icon="i-lucide-layout-grid"
+          label="Layout"
+          trailing-icon="i-lucide-chevron-down"
+          :ui="{ trailingIcon: 'transition-transform group-data-[state=open]:rotate-180' }"
+        />
+        <template #content>
+          <div class="flex gap-2 px-2 pt-3 pb-6">
+            <UButton
+              label="Horizontal"
+              :variant="layout === 'horizontal' ? 'solid' : 'outline'"
+              color="neutral"
+              size="sm"
+              @click="layout = 'horizontal'"
+            />
+            <UButton
+              label="Stacked"
+              :variant="layout === 'stacked' ? 'solid' : 'outline'"
+              color="neutral"
+              size="sm"
+              @click="layout = 'stacked'"
+            />
+            <UButton
+              label="Mark Only"
+              :variant="layout === 'mark-only' ? 'solid' : 'outline'"
+              color="neutral"
+              size="sm"
+              @click="layout = 'mark-only'"
+            />
+          </div>
+        </template>
+      </UCollapsible>
+
+      <USeparator />
+
+      <!-- Scale -->
+      <UCollapsible class="group">
+        <UButton
+          variant="ghost"
+          block
+          class="justify-start"
+          color="neutral"
+          icon="i-lucide-maximize-2"
+          label="Proportions"
+          trailing-icon="i-lucide-chevron-down"
+          :ui="{ trailingIcon: 'transition-transform group-data-[state=open]:rotate-180' }"
+        />
+        <template #content>
+          <div class="space-y-4 px-2 pt-3 pb-6">
+            <UFormField label="Logo Scale">
+              <USlider
+                v-model="logoScale"
                 color="neutral"
-                size="sm"
-                @click="layout = 'stacked'"
+                :min="0.5"
+                :max="3"
+                :step="0.1"
               />
-              <UButton
-                label="Mark Only"
-                :variant="layout === 'mark-only' ? 'solid' : 'outline'"
+            </UFormField>
+            <UFormField label="Wordmark Scale">
+              <USlider
+                v-model="wordmarkScale"
                 color="neutral"
-                size="sm"
-                @click="layout = 'mark-only'"
+                :min="0.5"
+                :max="3"
+                :step="0.1"
               />
-            </div>
-          </template>
-        </UCollapsible>
-
-        <USeparator />
-
-        <!-- Scale -->
-        <UCollapsible class="group">
-          <UButton
-            variant="ghost"
-            block
-            class="justify-start"
-            color="neutral"
-            icon="i-lucide-maximize-2"
-            label="Proportions"
-            trailing-icon="i-lucide-chevron-down"
-            :ui="{ trailingIcon: 'transition-transform group-data-[state=open]:rotate-180' }"
-          />
-          <template #content>
-            <div class="space-y-4 px-2 pt-3 pb-6">
-              <UFormField label="Logo Scale">
-                <USlider
-                  v-model="logoScale"
-                  color="neutral"
-                  :min="0.5"
-                  :max="3"
-                  :step="0.1"
-                />
-              </UFormField>
-              <UFormField label="Wordmark Scale">
-                <USlider
-                  v-model="wordmarkScale"
-                  color="neutral"
-                  :min="0.5"
-                  :max="3"
-                  :step="0.1"
-                />
-              </UFormField>
-              <UFormField label="Tagline Scale">
-                <USlider
-                  v-model="taglineScale"
-                  color="neutral"
-                  :min="0.5"
-                  :max="3"
-                  :step="0.1"
-                />
-              </UFormField>
-              <UFormField label="Logo Gap">
-                <USlider
-                  v-model="logoGap"
-                  color="neutral"
-                  :min="0.25"
-                  :max="3"
-                  :step="0.25"
-                />
-              </UFormField>
-              <UFormField label="Tagline Gap">
-                <USlider
-                  v-model="taglineGap"
-                  color="neutral"
-                  :min="0.25"
-                  :max="3"
-                  :step="0.25"
-                />
-              </UFormField>
-              <UFormField label="Logo Offset X">
-                <USlider
-                  v-model="logoOffsetX"
-                  color="neutral"
-                  :min="-3"
-                  :max="3"
-                  :step="0.125"
-                />
-              </UFormField>
-              <UFormField label="Logo Offset Y">
-                <USlider
-                  v-model="logoOffsetY"
-                  color="neutral"
-                  :min="-3"
-                  :max="3"
-                  :step="0.125"
-                />
-              </UFormField>
-              <UButton
-                label="Reset"
-                icon="i-lucide-rotate-ccw"
-                variant="outline"
+            </UFormField>
+            <UFormField label="Tagline Scale">
+              <USlider
+                v-model="taglineScale"
                 color="neutral"
-                size="sm"
-                block
-                @click="logoScale = 1; wordmarkScale = 1; taglineScale = 1; logoGap = 1; taglineGap = 1; logoOffsetX = 0; logoOffsetY = 0"
+                :min="0.5"
+                :max="3"
+                :step="0.1"
               />
-            </div>
-          </template>
-        </UCollapsible>
+            </UFormField>
+            <UFormField label="Logo Gap">
+              <USlider
+                v-model="logoGap"
+                color="neutral"
+                :min="0.25"
+                :max="3"
+                :step="0.25"
+              />
+            </UFormField>
+            <UFormField label="Tagline Gap">
+              <USlider
+                v-model="taglineGap"
+                color="neutral"
+                :min="0.25"
+                :max="3"
+                :step="0.25"
+              />
+            </UFormField>
+            <UFormField label="Logo Offset X">
+              <USlider
+                v-model="logoOffsetX"
+                color="neutral"
+                :min="-3"
+                :max="3"
+                :step="0.125"
+              />
+            </UFormField>
+            <UFormField label="Logo Offset Y">
+              <USlider
+                v-model="logoOffsetY"
+                color="neutral"
+                :min="-3"
+                :max="3"
+                :step="0.125"
+              />
+            </UFormField>
+            <UButton
+              label="Reset"
+              icon="i-lucide-rotate-ccw"
+              variant="outline"
+              color="neutral"
+              size="sm"
+              block
+              @click="logoScale = 1; wordmarkScale = 1; taglineScale = 1; logoGap = 1; taglineGap = 1; logoOffsetX = 0; logoOffsetY = 0"
+            />
+          </div>
+        </template>
+      </UCollapsible>
 
-      </div>
-
-      <div class="border-t border-zinc-200 p-4 dark:border-zinc-800">
-        <ShareLink :config="config" />
-      </div>
-    </UDashboardPanel>
+      <template #footer>
+        <ShareLink
+          :config="config"
+          class="w-full"
+        />
+      </template>
+    </UDashboardSidebar>
 
     <!-- Right panel: fixed preview -->
     <UDashboardPanel id="preview">
+      <!-- Mobile only: desktop has the controls inline, so it needs no bar -->
+      <UDashboardNavbar
+        title="Lookit"
+        class="lg:hidden"
+      />
+
       <div
-        class="flex h-full flex-col items-center justify-center transition-colors duration-300"
+        class="flex flex-1 flex-col items-center justify-center transition-colors duration-300"
         :style="bgStyle"
       >
         <BrandPreview
