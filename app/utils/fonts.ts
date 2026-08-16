@@ -97,3 +97,20 @@ export function clampWeight(font: string, weight: number): number {
     Math.abs(curr - weight) < Math.abs(prev - weight) ? curr : prev,
   );
 }
+
+/**
+ * The editor's font multiselect emits whole `{ label, value }` option objects
+ * unless told otherwise, so previews saved before that was fixed hold options
+ * where they should hold names. Feeding one to font-family yields the string
+ * "[object Object]", which is invalid, so the browser silently falls back and
+ * the lockup stops responding to font changes. Normalise anything option-shaped
+ * back to its name.
+ */
+export function toFontName(font: unknown): string {
+  if (typeof font === 'string') return font;
+  if (font && typeof font === 'object' && 'value' in font) {
+    const { value } = font as { value: unknown };
+    if (typeof value === 'string') return value;
+  }
+  return 'Inter';
+}

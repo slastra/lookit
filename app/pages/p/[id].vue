@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { PreviewConfig, Selection, SelectionLockup } from '~/types';
-import { getFontWeights, clampWeight } from '~/utils/fonts';
+import { getFontWeights, clampWeight, toFontName } from '~/utils/fonts';
 
 const route = useRoute();
 const toast = useToast();
@@ -12,13 +12,25 @@ if (error.value || !config.value) {
   throw createError({ statusCode: 404, statusMessage: 'Preview not found' });
 }
 
+// Repair previews saved with option objects in place of font names.
+config.value.fonts = config.value.fonts.map(toFontName);
+config.value.defaultWordmarkFont = toFontName(config.value.defaultWordmarkFont ?? config.value.fonts[0]);
+config.value.defaultTaglineFont = toFontName(config.value.defaultTaglineFont ?? config.value.fonts[0]);
+
 // Local state initialized from config defaults
 const logomarkIndex = ref(0);
-const fontIndex = ref(0);
 const wordmarkFont = ref(config.value.defaultWordmarkFont || config.value.fonts[0] || 'Inter');
 const wordmarkFontWeight = ref(config.value.defaultWordmarkWeight ?? 700);
 const taglineFont = ref(config.value.defaultTaglineFont || config.value.fonts[0] || 'Inter');
 const taglineFontWeight = ref(config.value.defaultTaglineWeight ?? 400);
+/**
+ * Derived, not stored. The font also changes from the toolbar select and from
+ * applying a saved selection, neither of which went through setFont, so a
+ * stored index drifted out of step with the font actually showing — and a
+ * cycle from a stale index could re-apply the font already on screen, looking
+ * like the preview had stopped responding.
+ */
+const fontIndex = computed(() => config.value?.fonts.indexOf(wordmarkFont.value) ?? -1);
 const primaryColor = ref(config.value.primaryColor);
 const accentColor = ref(config.value.accentColor);
 const layout = ref(config.value.layout);
@@ -93,9 +105,8 @@ function isFormElement(e: KeyboardEvent) {
 
 function setFont(index: number) {
   if (!config.value) return;
-  const fonts = config.value.fonts;
-  fontIndex.value = index;
-  const font = fonts[index];
+  const font = config.value.fonts[index];
+  if (!font) return;
   wordmarkFont.value = font;
   wordmarkFontWeight.value = clampWeight(font, wordmarkFontWeight.value);
   taglineFont.value = font;

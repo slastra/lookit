@@ -96,6 +96,18 @@ function removeLogomark(index: number) {
 
 const previewIndex = ref(0);
 
+/**
+ * Two rungs down the lockup's own golden-ratio scale — small enough that a
+ * strip of them reads as a set, large enough that a mark is still legible.
+ */
+const THUMBNAIL_SIZE = 1 / 1.618 ** 2;
+
+const previewableLogomarks = computed(() =>
+  logomarks.value
+    .map((mark, index) => ({ ...mark, _idx: index }))
+    .filter((mark): mark is { label: string; svg: string; _idx: number } => !!mark.svg),
+);
+
 const previewLogomark = computed(() => {
   const selected = logomarks.value[previewIndex.value];
   if (selected?.svg) return selected.svg;
@@ -308,6 +320,7 @@ const config = computed<PreviewConfig>(() => ({
               <USelectMenu
                 v-model="selectedFonts"
                 :items="fontOptions"
+                value-key="value"
                 multiple
                 placeholder="Select fonts"
               >
@@ -557,57 +570,63 @@ const config = computed<PreviewConfig>(() => ({
       />
 
       <div
-        class="flex flex-1 flex-col items-center justify-center transition-colors duration-300"
+        class="flex flex-1 flex-col transition-colors duration-300"
         :style="bgStyle"
       >
-        <BrandPreview
-          :logomark-svg="previewLogomark"
-          :wordmark-svg="wordmark || undefined"
-          :tagline-svg="taglineSvg || undefined"
-          :primary-color="primaryColor"
-          :accent-color="accentColor"
-          :wordmark-font="wordmarkFont"
-          :wordmark-font-weight="wordmarkFontWeight"
-          :tagline-font="taglineFont"
-          :tagline-font-weight="taglineFontWeight"
-          :layout="layout"
-          :logo-scale="logoScale"
-          :wordmark-scale="wordmarkScale"
-          :tagline-scale="taglineScale"
-          :brand-name="brandName || undefined"
-          :tagline-text="taglineText || undefined"
-          :logo-gap="logoGap"
-          :tagline-gap="taglineGap"
-          :wordmark-letter-spacing="wordmarkLetterSpacing"
-          :tagline-letter-spacing="taglineLetterSpacing"
-          :logo-offset-x="logoOffsetX"
-          :logo-offset-y="logoOffsetY"
-        />
+        <div class="flex min-h-0 flex-1 items-center justify-center p-4">
+          <BrandPreview
+            :logomark-svg="previewLogomark"
+            :wordmark-svg="wordmark || undefined"
+            :tagline-svg="taglineSvg || undefined"
+            :primary-color="primaryColor"
+            :accent-color="accentColor"
+            :wordmark-font="wordmarkFont"
+            :wordmark-font-weight="wordmarkFontWeight"
+            :tagline-font="taglineFont"
+            :tagline-font-weight="taglineFontWeight"
+            :layout="layout"
+            :logo-scale="logoScale"
+            :wordmark-scale="wordmarkScale"
+            :tagline-scale="taglineScale"
+            :brand-name="brandName || undefined"
+            :tagline-text="taglineText || undefined"
+            :logo-gap="logoGap"
+            :tagline-gap="taglineGap"
+            :wordmark-letter-spacing="wordmarkLetterSpacing"
+            :tagline-letter-spacing="taglineLetterSpacing"
+            :logo-offset-x="logoOffsetX"
+            :logo-offset-y="logoOffsetY"
+          />
+        </div>
 
-        <!-- Mini previews of all logomarks -->
+        <!--
+          Logomark options as a filmstrip rather than a wrapping grid: it costs
+          the same band of height whether there are three marks or thirty, so
+          the lockup above keeps the rest. Each tile is the real lockup at a
+          smaller rung, not a scaled-down copy, so it sits in its tile the way
+          the big one sits on the page.
+        -->
         <div
-          v-if="logomarks.filter(l => l.svg).length > 1"
-          class="mt-12 flex flex-wrap justify-center gap-6"
+          v-if="previewableLogomarks.length > 1"
+          class="shrink-0 snap-x snap-mandatory overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          <div
-            v-for="(mark, origIndex) in logomarks.map((m, idx) => ({ ...m, _idx: idx })).filter(l => l.svg)"
-            :key="origIndex"
-            class="flex cursor-pointer flex-col items-center gap-2"
-            @click="previewIndex = mark._idx"
-          >
-            <p
-              class="text-xs font-medium"
-              :style="{ color: primaryColor }"
-            >
-              {{ mark.label }}
-            </p>
+          <div class="flex w-max items-stretch gap-3 px-4 pb-4">
             <div
-              class="flex h-32 w-40 items-center justify-center overflow-hidden rounded-lg border-2 p-3 transition-colors"
-              :style="{ borderColor: previewIndex === mark._idx ? primaryColor : primaryColor + '33' }"
+              v-for="mark in previewableLogomarks"
+              :key="mark._idx"
+              class="flex shrink-0 cursor-pointer snap-center flex-col items-center gap-1.5"
+              @click="previewIndex = mark._idx"
             >
-              <div class="scale-[0.35] transform">
+              <span
+                class="text-xs font-medium"
+                :style="{ color: primaryColor }"
+              >{{ mark.label }}</span>
+              <div
+                class="flex min-w-20 flex-1 items-center justify-center rounded-lg border-2 px-3 py-2 transition-colors"
+                :style="{ borderColor: previewIndex === mark._idx ? primaryColor : primaryColor + '33' }"
+              >
                 <BrandPreview
-                  :logomark-svg="mark.svg!"
+                  :logomark-svg="mark.svg"
                   :wordmark-svg="wordmark || undefined"
                   :tagline-svg="taglineSvg || undefined"
                   :primary-color="primaryColor"
@@ -618,6 +637,7 @@ const config = computed<PreviewConfig>(() => ({
                   :logo-scale="logoScale"
                   :wordmark-scale="wordmarkScale"
                   :tagline-scale="taglineScale"
+                  :size="THUMBNAIL_SIZE"
                   :brand-name="brandName || undefined"
                   :tagline-text="taglineText || undefined"
                   :logo-gap="logoGap"

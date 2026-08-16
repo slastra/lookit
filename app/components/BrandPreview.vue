@@ -21,6 +21,8 @@ const props = defineProps<{
   taglineLetterSpacing?: number;
   logoOffsetX?: number;
   logoOffsetY?: number;
+  /** Multiplies the whole modular scale — 1 is the full-size lockup. */
+  size?: number;
 }>();
 
 /**
@@ -37,6 +39,13 @@ const props = defineProps<{
  */
 const PHI = (1 + Math.sqrt(5)) / 2;
 const rung = (n: number) => PHI ** n;
+
+/**
+ * Exponentiation isn't required to be correctly rounded, so engines disagree in
+ * the last bits of a rung and full precision leaks that into the DOM. A
+ * ten-thousandth of a rem is far under a device pixel, so round it away.
+ */
+const rem = (value: number) => `${Math.round(value * 1e4) / 1e4}rem`;
 
 const WORDMARK_REM = rung(2);
 const TAGLINE_REM = rung(1);
@@ -66,7 +75,14 @@ const TAGLINE_GAP_REM = rung(-1);
  */
 const CAP_RATIO = 0.75;
 
-const logoSizeRem = computed(() => LOGO_REM[props.layout] * props.logoScale);
+/**
+ * A thumbnail is the same lockup at a smaller rung, not a transformed copy of a
+ * big one: everything below multiplies through by this, so a mini is laid out
+ * at its real size and its box hugs it the way the full-size one does.
+ */
+const unit = computed(() => props.size ?? 1);
+
+const logoSizeRem = computed(() => LOGO_REM[props.layout] * props.logoScale * unit.value);
 
 /**
  * Which dimension governs depends on the axis the lockup runs along. Beside the
@@ -94,9 +110,9 @@ const logoBox = computed(() => {
   }
 
   return {
-    width: `${width}rem`,
-    height: `${height}rem`,
-    transform: `translate(${props.logoOffsetX ?? 0}rem, ${props.logoOffsetY ?? 0}rem)`,
+    width: rem(width),
+    height: rem(height),
+    transform: `translate(${rem((props.logoOffsetX ?? 0) * unit.value)}, ${rem((props.logoOffsetY ?? 0) * unit.value)})`,
   };
 });
 
@@ -105,20 +121,20 @@ const logoBox = computed(() => {
  * up with a gap taller than the artwork it's meant to sit against.
  */
 const gapStyle = computed(() =>
-  `${GAP_REM[props.layout] * (props.logoGap ?? 1)}rem`,
+  rem(GAP_REM[props.layout] * (props.logoGap ?? 1) * unit.value),
 );
 
 const taglineMargin = computed(() =>
-  `${TAGLINE_GAP_REM * (props.taglineGap ?? 1)}rem`,
+  rem(TAGLINE_GAP_REM * (props.taglineGap ?? 1) * unit.value),
 );
 
 const wordmarkSvgStyle = computed(() => ({
-  height: `${WORDMARK_REM * props.wordmarkScale}rem`,
+  height: rem(WORDMARK_REM * props.wordmarkScale * unit.value),
   letterSpacing: `${props.wordmarkLetterSpacing ?? 0}em`,
 }));
 
 const wordmarkTextStyle = computed(() => ({
-  fontSize: `${WORDMARK_REM * CAP_RATIO * props.wordmarkScale}rem`,
+  fontSize: rem(WORDMARK_REM * CAP_RATIO * props.wordmarkScale * unit.value),
   lineHeight: 1,
   fontFamily: props.wordmarkFont,
   fontWeight: props.wordmarkFontWeight ?? 700,
@@ -127,13 +143,13 @@ const wordmarkTextStyle = computed(() => ({
 }));
 
 const taglineSvgStyle = computed(() => ({
-  height: `${TAGLINE_REM * props.taglineScale}rem`,
+  height: rem(TAGLINE_REM * props.taglineScale * unit.value),
   marginTop: taglineMargin.value,
   letterSpacing: `${props.taglineLetterSpacing ?? 0}em`,
 }));
 
 const taglineTextStyle = computed(() => ({
-  fontSize: `${TAGLINE_REM * CAP_RATIO * props.taglineScale}rem`,
+  fontSize: rem(TAGLINE_REM * CAP_RATIO * props.taglineScale * unit.value),
   lineHeight: 1,
   marginTop: taglineMargin.value,
   fontFamily: props.taglineFont,

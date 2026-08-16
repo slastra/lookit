@@ -2,6 +2,10 @@
 export default defineNuxtConfig({
   compatibilityDate: '2026-03-14',
 
+  // A share link is a private URL behind a random id, so there is nothing for a
+  // crawler to index and no first-paint win worth the hydration surface.
+  ssr: false,
+
   modules: [
     '@nuxt/ui',
     '@nuxt/eslint',
