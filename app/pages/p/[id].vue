@@ -102,6 +102,12 @@ function setFont(index: number) {
   taglineFontWeight.value = clampWeight(font, taglineFontWeight.value);
 }
 
+function cycleLogomarks(forward = true) {
+  if (!config.value || config.value.logomarks.length <= 1) return;
+  const len = config.value.logomarks.length;
+  logomarkIndex.value = (logomarkIndex.value + (forward ? 1 : len - 1)) % len;
+}
+
 function cycleFonts(forward = true) {
   if (!config.value || config.value.fonts.length <= 1) return;
   const len = config.value.fonts.length;
@@ -128,8 +134,7 @@ function onKeydown(e: KeyboardEvent) {
   }
   else if (e.code === 'Space') {
     e.preventDefault();
-    if (!config.value || config.value.logomarks.length <= 1) return;
-    logomarkIndex.value = (logomarkIndex.value + 1) % config.value.logomarks.length;
+    cycleLogomarks();
   }
   else if (e.code === 'KeyR' && !e.metaKey && !e.ctrlKey && !e.altKey) {
     e.preventDefault();
@@ -137,38 +142,21 @@ function onKeydown(e: KeyboardEvent) {
   }
 }
 
-// Swipe gestures: upper half cycles logomarks, lower half cycles fonts
-const previewArea = ref<HTMLElement>();
-let touchStartX = 0;
-let touchStartY = 0;
-const SWIPE_THRESHOLD = 50;
-
-function onTouchStart(e: TouchEvent) {
-  touchStartX = e.touches[0].clientX;
-  touchStartY = e.touches[0].clientY;
-}
-
-function onTouchEnd(e: TouchEvent) {
-  const dx = e.changedTouches[0].clientX - touchStartX;
-  const dy = e.changedTouches[0].clientY - touchStartY;
-  if (Math.abs(dx) < SWIPE_THRESHOLD || Math.abs(dy) > Math.abs(dx)) return;
-
-  const el = previewArea.value;
-  if (!el) return;
-  const rect = el.getBoundingClientRect();
-  const midY = rect.top + rect.height / 2;
-  const isUpper = touchStartY < midY;
-  const forward = dx < 0; // swipe left = next
-
-  if (isUpper) {
-    if (!config.value || config.value.logomarks.length <= 1) return;
-    const len = config.value.logomarks.length;
-    logomarkIndex.value = (logomarkIndex.value + (forward ? 1 : len - 1)) % len;
+/**
+ * Swipe anywhere in the viewport: sideways cycles logomarks, up and down cycles
+ * fonts. The mapping is the same everywhere on screen, so there's no invisible
+ * boundary to land on the wrong side of. The preview opts out of vertical
+ * panning (see its touch-action) so a vertical swipe there reaches us instead
+ * of scrolling; over the toolbar and the feed, the page still scrolls.
+ */
+useSwipe((direction) => {
+  if (direction === 'left' || direction === 'right') {
+    cycleLogomarks(direction === 'left');
   }
   else {
-    cycleFonts(forward);
+    cycleFonts(direction === 'up');
   }
-}
+});
 
 onMounted(() => window.addEventListener('keydown', onKeydown));
 onUnmounted(() => window.removeEventListener('keydown', onKeydown));
@@ -510,11 +498,8 @@ useHead({
 
     <!-- Preview area -->
     <div
-      ref="previewArea"
       class="flex flex-1 items-center justify-center transition-colors duration-300"
-      :style="bgStyle"
-      @touchstart.passive="onTouchStart"
-      @touchend="onTouchEnd"
+      :style="[bgStyle, { touchAction: 'pan-x pinch-zoom' }]"
     >
       <BrandPreview
         :logomark-svg="currentLogomark?.svg"
